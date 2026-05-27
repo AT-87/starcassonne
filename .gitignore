@@ -1,0 +1,36 @@
+# Claude Code project settings (local only)
+.claude/
+
+# Xcode build artifacts
+*.xcuserstate
+xcuserdata/
+DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcworkspace/xcuserdata/
+
+# Build output
+build/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Instruments
+*.trace
+
+# Crashlytics
+crashlytics-build.properties
+
+# CocoaPods (if ever used)
+Pods/
+
+# SPM resolved (keep Package.resolved)
+# .package.resolved — keep for reproducible builds
