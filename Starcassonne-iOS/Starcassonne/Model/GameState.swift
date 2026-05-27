@@ -252,10 +252,14 @@ struct GameState {
         let candidatePos = lastNebulaPos.neighbor(in: exitDir)
         guard placedTiles[candidatePos] == nil else { return [] }
 
-        // The new tile is valid only if its ENTRY edge faces back toward lastNebulaPos.
-        // Checking only the entry (not the exit) prevents U-turns: the tile must be
-        // oriented so its stream enters from the direction we came from.
-        guard tile.rotatedNebulaEntry == exitDir.opposite else { return [] }
+        // The new tile is valid if EITHER of its stream edges faces back toward lastNebulaPos.
+        // In real Carcassonne the river is directionless — a tile is validly placed as long as
+        // one of its stream edges connects to the incoming flow. Requiring only nebulaEntry was
+        // too strict: tiles placed "reversed" (exit facing back) were incorrectly rejected.
+        // U-turns are impossible because that would require both stream edges to point the same
+        // direction, which no valid tile has.
+        let newTileStreamEdges = [tile.rotatedNebulaEntry, tile.rotatedNebulaExit].compactMap { $0 }
+        guard newTileStreamEdges.contains(exitDir.opposite) else { return [] }
 
         return [candidatePos]
     }
