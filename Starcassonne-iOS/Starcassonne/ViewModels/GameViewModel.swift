@@ -145,16 +145,23 @@ class GameViewModel {
             }
         }
 
-        // ── Colony / Dilithium ────────────────────────────────────────────────
+        // ── Colony ───────────────────────────────────────────────────────────
+        // Two ship types can occupy a colony:
+        //   • Regular Ship  — scores at game end / when completed; not recallable
+        //   • Mining Ship   — Abbot equivalent; can be recalled early to score immediately
         if tile.features.contains(.colony),
            !ScoringEngine.isOccupied(at: pos, edgeDir: .north,
                                       feature: .colony, in: gameState) {
-            options.append(ShipOption(feature: .colony, edgeDir: nil, label: "COLONY"))
+            options.append(ShipOption(feature: .colony,     edgeDir: nil, label: "COLONY\n(SHIP)"))
+            options.append(ShipOption(feature: .miningShip, edgeDir: nil, label: "COLONY\n(MINING)"))
         }
+
+        // ── Dilithium Asteroid ────────────────────────────────────────────────
+        // Only the Mining Ship may claim a Dilithium Asteroid (per STARCASSONNE.md).
         if tile.features.contains(.dilithiumAsteroid),
            !ScoringEngine.isOccupied(at: pos, edgeDir: .north,
                                       feature: .dilithium, in: gameState) {
-            options.append(ShipOption(feature: .dilithium, edgeDir: nil, label: "DILITHIUM"))
+            options.append(ShipOption(feature: .dilithium, edgeDir: nil, label: "DILITHIUM\n(MINING)"))
         }
 
         // ── Open Space / Trader ───────────────────────────────────────────────

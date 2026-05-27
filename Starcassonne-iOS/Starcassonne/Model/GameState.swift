@@ -476,7 +476,7 @@ struct GameState {
         return placedTiles.compactMap { (pos, tile) -> GridPosition? in
             guard let ship = tile.placedShip,
                   ship.faction == currentPlayer.faction,
-                  ship.feature == .colony || ship.feature == .dilithium else { return nil }
+                  ship.feature == .miningShip || ship.feature == .dilithium else { return nil }
             return pos
         }
     }
@@ -489,7 +489,7 @@ struct GameState {
         guard var tile = placedTiles[pos],
               let ship = tile.placedShip,
               ship.faction == currentPlayer.faction,
-              ship.feature == .colony || ship.feature == .dilithium else { return 0 }
+              ship.feature == .miningShip || ship.feature == .dilithium else { return 0 }
 
         // Score at current board state (ship still present for monastery calculation)
         var scored = 0

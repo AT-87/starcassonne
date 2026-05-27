@@ -13,8 +13,6 @@ struct BoardView: View {
 
     // Item 1: animated faction glow pulse
     @State private var glowPulse: Bool = false
-    // Item 5: tile placement ghost/preview
-    @State private var previewPos: GridPosition? = nil
 
     var body: some View {
         ZStack {
@@ -57,75 +55,31 @@ struct BoardView: View {
                                 .position(x: x + tileSize/2, y: y + tileSize/2)
 
                             } else if isValid && !vm.awaitingShip {
-                                // Item 5: ghost preview or normal dashed slot
-                                if previewPos == pos, let previewTile = vm.currentTile {
-                                    // Ghost preview: semi-transparent tile + confirm/cancel
-                                    ZStack(alignment: .bottom) {
-                                        TileView(tile: previewTile, size: tileSize)
-                                            .opacity(0.55)
-                                            .allowsHitTesting(false)
-
-                                        HStack(spacing: 8) {
-                                            // ✓ Confirm placement
-                                            Button {
-                                                LCARSAudio.shared.placement()
-                                                vm.selectPosition(pos)
-                                                previewPos = nil
-                                            } label: {
-                                                Text("✓")
-                                                    .font(.system(size: 13, weight: .black))
-                                                    .foregroundStyle(.black)
-                                                    .frame(width: 34, height: 22)
-                                                    .background(Color.green.opacity(0.9))
-                                                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                                            }
-                                            .buttonStyle(.plain)
-
-                                            // ✕ Cancel preview
-                                            Button {
-                                                previewPos = nil
-                                            } label: {
-                                                Text("✕")
-                                                    .font(.system(size: 13, weight: .black))
-                                                    .foregroundStyle(.black)
-                                                    .frame(width: 34, height: 22)
-                                                    .background(Color.lcarsRed.opacity(0.9))
-                                                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                                            }
-                                            .buttonStyle(.plain)
+                                // Valid slot — tap immediately places the tile
+                                Button {
+                                    LCARSAudio.shared.placement()
+                                    vm.selectPosition(pos)
+                                } label: {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .strokeBorder(
+                                            vm.phase == .nebula
+                                                ? Color.purple.opacity(0.7)
+                                                : Color.cyan.opacity(0.7),
+                                            style: StrokeStyle(lineWidth: 2, dash: [6, 4])
+                                        )
+                                        .background(Color.clear)
+                                        .frame(width: tileSize, height: tileSize)
+                                        .overlay {
+                                            Image(systemName: "plus")
+                                                .foregroundStyle(
+                                                    vm.phase == .nebula
+                                                        ? .purple.opacity(0.6)
+                                                        : .cyan.opacity(0.6)
+                                                )
+                                                .font(.title2)
                                         }
-                                        .padding(.bottom, 4)
-                                    }
-                                    .frame(width: tileSize, height: tileSize)
-                                    .clipped()
-                                    .position(x: x + tileSize/2, y: y + tileSize/2)
-
-                                } else {
-                                    // Normal dashed slot — first tap shows ghost
-                                    Button {
-                                        previewPos = pos
-                                    } label: {
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .strokeBorder(
-                                                vm.phase == .nebula
-                                                    ? Color.purple.opacity(0.7)
-                                                    : Color.cyan.opacity(0.7),
-                                                style: StrokeStyle(lineWidth: 2, dash: [6, 4])
-                                            )
-                                            .background(Color.clear)
-                                            .frame(width: tileSize, height: tileSize)
-                                            .overlay {
-                                                Image(systemName: "plus")
-                                                    .foregroundStyle(
-                                                        vm.phase == .nebula
-                                                            ? .purple.opacity(0.6)
-                                                            : .cyan.opacity(0.6)
-                                                    )
-                                                    .font(.title2)
-                                            }
-                                    }
-                                    .position(x: x + tileSize/2, y: y + tileSize/2)
                                 }
+                                .position(x: x + tileSize/2, y: y + tileSize/2)
                             }
                         }
                     }
@@ -220,7 +174,7 @@ struct ShipOverlay: View {
             // Sit at center of the corridor track
             return CGPoint(x: mid, y: mid)
 
-        case .colony, .dilithium:
+        case .colony, .miningShip, .dilithium:
             // These symbols are drawn at center — offset ship slightly so it's visible
             return CGPoint(x: mid, y: mid - s * 0.08)
 

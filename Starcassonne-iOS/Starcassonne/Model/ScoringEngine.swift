@@ -238,8 +238,11 @@ enum ScoringEngine {
         let surroundCount = ring.filter { state.placedTiles[$0] != nil }.count
 
         var ships = [Faction: Int]()
-        let feat: PlacedFeature = tile.features.contains(.colony) ? .colony : .dilithium
-        if let ship = tile.placedShip, ship.feature == feat {
+        // Both .colony and .miningShip (Abbot) count as occupants on a colony tile.
+        let isColony = tile.features.contains(.colony)
+        if let ship = tile.placedShip,
+           isColony ? (ship.feature == .colony || ship.feature == .miningShip)
+                    : ship.feature == .dilithium {
             ships[ship.faction, default: 0] += 1
         }
 
@@ -263,8 +266,10 @@ enum ScoringEngine {
             return findSector(at: pos, edgeDir: edgeDir, in: state)?.ships.isEmpty == false
         case .warpCorridor:
             return findCorridor(at: pos, edgeDir: edgeDir, in: state)?.ships.isEmpty == false
-        case .colony:
-            return state.placedTiles[pos]?.placedShip?.feature == .colony
+        case .colony, .miningShip:
+            // Either ship type (regular or Mining Ship/Abbot) blocks placement on a colony.
+            let f = state.placedTiles[pos]?.placedShip?.feature
+            return f == .colony || f == .miningShip
         case .dilithium:
             return state.placedTiles[pos]?.placedShip?.feature == .dilithium
         case .openSpace:

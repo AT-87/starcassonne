@@ -144,9 +144,10 @@ struct Tile: Identifiable, Codable {
 enum PlacedFeature: String, Codable {
     case sector       // city
     case warpCorridor // road
-    case colony       // monastery
+    case colony       // monastery — regular ship (not recallable)
+    case miningShip   // abbot on monastery OR any claim on dilithium (recallable)
     case openSpace    // field (farmer)
-    case dilithium    // garden
+    case dilithium    // garden — Mining Ship only (recallable)
 }
 
 // MARK: - Codable conformance for placedShip tuple

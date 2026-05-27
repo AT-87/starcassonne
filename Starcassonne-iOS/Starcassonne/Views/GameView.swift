@@ -384,6 +384,7 @@ private struct LCARSShipBar: View {
         case .sector:       return "Sector"
         case .warpCorridor: return "Warp"
         case .colony:       return "Colony"
+        case .miningShip:   return "Mining"
         case .openSpace:    return "Trader"
         case .dilithium:    return "Dilithium"
         }
@@ -394,6 +395,7 @@ private struct LCARSShipBar: View {
         case .sector:       return "shield.fill"
         case .warpCorridor: return "arrow.forward"
         case .colony:       return "globe"
+        case .miningShip:   return "wrench.and.screwdriver.fill"
         case .openSpace:    return "star"
         case .dilithium:    return "diamond.fill"
         }
@@ -404,6 +406,7 @@ private struct LCARSShipBar: View {
         case .sector:       return Color(red: 0.2, green: 0.4, blue: 0.9)
         case .warpCorridor: return Color(red: 0.0, green: 0.7, blue: 0.8)
         case .colony:       return Color(red: 0.2, green: 0.7, blue: 0.3)
+        case .miningShip:   return Color(red: 0.1, green: 0.55, blue: 0.25)
         case .openSpace:    return Color(white: 0.45)
         case .dilithium:    return Color(red: 0.85, green: 0.75, blue: 0.1)
         }
