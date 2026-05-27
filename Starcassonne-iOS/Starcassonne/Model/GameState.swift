@@ -105,7 +105,7 @@ struct NebulaDeck {
                  n: .openSpace,   e: .openSpace, s: .openSpace,    w: .openSpace,
                  entry: .west, exit: .south),
         ]
-        middle.shuffle()
+        middle = NebulaDeck.shuffleNoAdjacentCurved(middle)
 
         // Lake: stream enters from west (player rotates to fit). Has Colony.
         let lake = make(.A,
@@ -114,6 +114,43 @@ struct NebulaDeck {
                         f: [.colony])
 
         return [source] + middle + [lake]
+    }
+
+    /// Returns true if both stream edges exist and are perpendicular (i.e. the tile curves).
+    /// Straight tiles have entry/exit on opposite edges; curved tiles have them on adjacent edges.
+    private static func isCurved(_ tile: Tile) -> Bool {
+        guard let entry = tile.nebulaEntry, let exit = tile.nebulaExit else { return false }
+        return entry != exit.opposite
+    }
+
+    /// Shuffles the 10 middle nebula tiles so no two curved tiles are ever adjacent.
+    ///
+    /// Strategy: split into curved and straight groups, shuffle each independently,
+    /// then distribute the curved tiles into distinct gaps between straight tiles.
+    /// With 6 straight tiles there are 7 gaps (positions 0…6) and only 4 curved tiles,
+    /// so a valid arrangement always exists.
+    private static func shuffleNoAdjacentCurved(_ tiles: [Tile]) -> [Tile] {
+        var curved   = tiles.filter {  isCurved($0) }.shuffled()
+        var straight = tiles.filter { !isCurved($0) }.shuffled()
+
+        // Pick `curved.count` distinct insertion gaps from the (straight.count + 1) available.
+        // Gaps are indexed 0 … straight.count (before, between, and after straight tiles).
+        var gaps = Array(0...straight.count).shuffled().prefix(curved.count).sorted()
+
+        // Build the result by walking through straight tiles, inserting curved tiles
+        // at the chosen gap indices.
+        var result: [Tile] = []
+        var curvedIdx = 0
+        for i in 0...straight.count {
+            if curvedIdx < gaps.count && gaps[curvedIdx] == i {
+                result.append(curved[curvedIdx])
+                curvedIdx += 1
+            }
+            if i < straight.count {
+                result.append(straight[i])
+            }
+        }
+        return result
     }
 
     private static func make(_ type: TileType,
