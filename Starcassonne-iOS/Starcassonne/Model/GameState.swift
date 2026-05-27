@@ -530,6 +530,6 @@ extension GameState: Codable {
         prevNebulaMoveDir     = try c.decodeIfPresent(Direction.self, forKey: .prevNebulaMoveDir)
         nebulaPlaced          = try c.decode(Int.self,               forKey: .nebulaPlaced)
         endGameScored         = try c.decode(Bool.self,              forKey: .endGameScored)
-        nebulaCount           = 12   // constant — always 12, not stored
+        // nebulaCount is a `let` with default value 12 — initialized at declaration, not here
     }
 }
