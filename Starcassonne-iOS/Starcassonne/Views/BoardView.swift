@@ -112,10 +112,6 @@ struct BoardView: View {
                 glowPulse = true
             }
         }
-        .onChange(of: vm.awaitingShip) { _, awaiting in
-            // Clear stale preview when ship placement begins
-            if awaiting { previewPos = nil }
-        }
     }
 }
 
