@@ -130,12 +130,12 @@ struct NebulaDeck {
     /// With 6 straight tiles there are 7 gaps (positions 0…6) and only 4 curved tiles,
     /// so a valid arrangement always exists.
     private static func shuffleNoAdjacentCurved(_ tiles: [Tile]) -> [Tile] {
-        var curved   = tiles.filter {  isCurved($0) }.shuffled()
-        var straight = tiles.filter { !isCurved($0) }.shuffled()
+        let curved   = tiles.filter {  isCurved($0) }.shuffled()
+        let straight = tiles.filter { !isCurved($0) }.shuffled()
 
         // Pick `curved.count` distinct insertion gaps from the (straight.count + 1) available.
         // Gaps are indexed 0 … straight.count (before, between, and after straight tiles).
-        var gaps = Array(0...straight.count).shuffled().prefix(curved.count).sorted()
+        let gaps = Array(0...straight.count).shuffled().prefix(curved.count).sorted()
 
         // Build the result by walking through straight tiles, inserting curved tiles
         // at the chosen gap indices.
