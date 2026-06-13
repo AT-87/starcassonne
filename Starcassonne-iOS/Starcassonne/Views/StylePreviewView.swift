@@ -573,8 +573,8 @@ private enum TileStyleTactical {
         }
 
         // Tile border — thin amber line
-        ctx.stroke(Path(RoundedRect(in: CGRect(x:1,y:1,width:s-2,height:s-2),
-                                    cornerSize: .init(width:3,height:3))),
+        ctx.stroke(Path(roundedRect: CGRect(x:1,y:1,width:s-2,height:s-2),
+                        cornerSize: CGSize(width:3,height:3)),
                    with: .color(Color(red:1.0,green:0.65,blue:0.1).opacity(0.55)), lineWidth: 1.5)
 
         // Colony
@@ -602,7 +602,7 @@ private enum TileStyleTactical {
             let r = s*0.11
             var p=Path()
             for i in 0..<12 {
-                let angle=CGFloat(i)*.pi/6 - .pi/2
+                let angle=CGFloat(i) * CGFloat.pi/6 - CGFloat.pi/2
                 let rad = i.isMultiple(of:2) ? r : r*0.5
                 let pt=CGPoint(x:center.x+cos(angle)*rad,y:center.y+sin(angle)*rad)
                 if i==0{p.move(to:pt)}else{p.addLine(to:pt)}
@@ -802,6 +802,7 @@ private enum TileStyleHolographic {
     }
 
     private static func drawHatching(ctx: GraphicsContext, trap: Path, s: CGFloat, color: Color) {
+        var ctx = ctx
         ctx.clip(to: trap)
         var hatch = Path()
         let step: CGFloat = s * 0.08
