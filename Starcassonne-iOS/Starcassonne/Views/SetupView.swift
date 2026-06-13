@@ -29,8 +29,8 @@ struct SetupView: View {
         NavigationStack {
             GeometryReader { geo in
                 // Guard against zero-size pass during initial layout
-                let geoW = max(geoW,  sidebarW + outerR + 1)
-                let geoH = max(geoH, footerH  + headerH + 1)
+                let geoW = max(geo.size.width,  sidebarW + outerR + 1)
+                let geoH = max(geo.size.height, footerH  + headerH + 1)
                 ZStack(alignment: .topLeading) {
                     Color.black.ignoresSafeArea()
 
