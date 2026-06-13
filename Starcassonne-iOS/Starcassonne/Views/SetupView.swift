@@ -28,6 +28,9 @@ struct SetupView: View {
     var body: some View {
         NavigationStack {
             GeometryReader { geo in
+                // Guard against zero-size pass during initial layout
+                let geoW = max(geoW,  sidebarW + outerR + 1)
+                let geoH = max(geoH, footerH  + headerH + 1)
                 ZStack(alignment: .topLeading) {
                     Color.black.ignoresSafeArea()
 
@@ -35,35 +38,35 @@ struct SetupView: View {
                     LCARSTopElbow(headerHeight: headerH, sidebarWidth: sidebarW,
                                   outerRadius: outerR, innerRadius: innerR)
                         .fill(Color.lcarsOrange)
-                        .frame(width: geo.size.width, height: geo.size.height * 0.55)
+                        .frame(width: geoW, height: geoH * 0.55)
                         .ignoresSafeArea(edges: .top)
 
                     // ── Bottom elbow (bottom portion of sidebar + footer)
                     LCARSBottomElbow(footerHeight: footerH, sidebarWidth: sidebarW,
                                      outerRadius: outerR, innerRadius: innerR)
                         .fill(Color.lcarsOrange)
-                        .frame(width: geo.size.width, height: geo.size.height * 0.50)
-                        .offset(y: geo.size.height * 0.50)
+                        .frame(width: geoW, height: geoH * 0.50)
+                        .offset(y: geoH * 0.50)
                         .ignoresSafeArea(edges: .bottom)
 
                     // ── Header content (title row)
                     headerContent
-                        .frame(width: geo.size.width - sidebarW - outerR,
+                        .frame(width: geoW - sidebarW - outerR,
                                height: headerH)
                         .offset(x: sidebarW + outerR)
                         .ignoresSafeArea(edges: .top)
 
                     // ── Footer content (engage button)
                     footerContent
-                        .frame(width: geo.size.width - sidebarW - outerR,
+                        .frame(width: geoW - sidebarW - outerR,
                                height: footerH)
                         .offset(x: sidebarW + outerR,
-                                y: geo.size.height - footerH)
+                                y: geoH - footerH)
                         .ignoresSafeArea(edges: .bottom)
 
                     // ── Left sidebar: player count selector
                     sidebarContent
-                        .frame(width: sidebarW, height: geo.size.height)
+                        .frame(width: sidebarW, height: geoH)
                         .ignoresSafeArea()
 
                     // ── Main content
@@ -72,7 +75,7 @@ struct SetupView: View {
                         .padding(.trailing, 24)
                         .padding(.top, headerH + innerR + 16)
                         .padding(.bottom, footerH + innerR + 16)
-                        .frame(width: geo.size.width, height: geo.size.height,
+                        .frame(width: geoW, height: geoH,
                                alignment: .topLeading)
                 }
             }

@@ -872,6 +872,7 @@ private enum TileStyleHolographic {
 /// Renders a tile as a procedural 3D scene using RealityKit.
 /// Each tile type maps to a hand-crafted scene: colony → planet, sectors → space station,
 /// corridors → glowing warp lane.
+@MainActor
 struct RKTileView: View {
     let tile: Tile
     let size: CGFloat
@@ -961,7 +962,7 @@ struct RKTileView: View {
         root.addChild(planet)
 
         // Atmosphere glow (slightly larger sphere, unlit semi-transparent)
-        let atmosMat = UnlitMaterial(color: UIColor(red: 0.3, green: 0.55, blue: 1.0, alpha: 0.18))
+        var atmosMat = UnlitMaterial(); atmosMat.color = .init(tint: UIColor(red: 0.3, green: 0.55, blue: 1.0, alpha: 0.18), texture: nil)
         let atmos = ModelEntity(mesh: MeshResource.generateSphere(radius: 0.21), materials: [atmosMat])
         atmos.position = [0, 0.03, 0]
         root.addChild(atmos)
@@ -1058,8 +1059,8 @@ struct RKTileView: View {
         let isNS = sides.contains(.north) || sides.contains(.south)
         let isEW = sides.contains(.east)  || sides.contains(.west)
 
-        let tubeMat = UnlitMaterial(color: UIColor(red: 0.0, green: 0.75, blue: 1.0, alpha: 0.7))
-        let coreMat = UnlitMaterial(color: UIColor(red: 0.7, green: 0.95, blue: 1.0, alpha: 0.9))
+        var tubeMat = UnlitMaterial(); tubeMat.color = .init(tint: UIColor(red: 0.0, green: 0.75, blue: 1.0, alpha: 0.7), texture: nil)
+        var coreMat = UnlitMaterial(); coreMat.color = .init(tint: UIColor(red: 0.7, green: 0.95, blue: 1.0, alpha: 0.9), texture: nil)
 
         if isNS {
             let tube = ModelEntity(mesh: MeshResource.generateCylinder(height: 0.90, radius: 0.045), materials: [tubeMat])
@@ -1081,7 +1082,7 @@ struct RKTileView: View {
         }
 
         // Beacon pillars at corridor end-points
-        let beaconMat = UnlitMaterial(color: UIColor(red: 0.2, green: 0.9, blue: 1.0, alpha: 1.0))
+        var beaconMat = UnlitMaterial(); beaconMat.color = .init(tint: UIColor(red: 0.2, green: 0.9, blue: 1.0, alpha: 1.0), texture: nil)
         let beaconPositions: [SIMD3<Float>] = [
             [0, 0.03, -0.44], [0, 0.03, 0.44],
             [-0.44, 0.03, 0], [0.44, 0.03, 0]
@@ -1128,7 +1129,7 @@ struct RKTileView: View {
     private func starField(count: Int, seed: Int, spread: Float, yRange: (Float, Float)) -> Entity {
         let root = Entity()
         var rng = SeededRNG(seed: seed)
-        let starMat = UnlitMaterial(color: UIColor(white: 0.9, alpha: 0.85))
+        var starMat = UnlitMaterial(); starMat.color = .init(tint: UIColor(white: 0.9, alpha: 0.85), texture: nil)
 
         for _ in 0..<count {
             let x = (Float(rng.next()) - 0.5) * spread * 2
