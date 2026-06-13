@@ -14,6 +14,7 @@ struct SetupView: View {
     @State private var playerFactions: [Faction] = [.federation, .klingon, .romulan,
                                                      .cardassian, .borg, .bajoran]
     @State private var startGame  = false
+    @State private var showStyleLab = false   // ⚠️ TEMP — delete with StylePreviewView
     // Item 4: pre-loaded save state (nil = fresh new game)
     @State private var loadedVM: GameViewModel? = nil
 
@@ -79,6 +80,10 @@ struct SetupView: View {
                 GameView(vm: loadedVM ?? GameViewModel(players: buildPlayers()))
                     .navigationBarBackButtonHidden()
             }
+            // ⚠️ TEMP — delete with StylePreviewView.swift
+            .navigationDestination(isPresented: $showStyleLab) {
+                StylePreviewView()
+            }
         }
         .preferredColorScheme(.dark)
     }
@@ -105,6 +110,20 @@ struct SetupView: View {
             .padding(.leading, 14)
 
             Spacer()
+
+            // ⚠️ TEMP style lab button — delete with StylePreviewView.swift
+            Button { showStyleLab = true } label: {
+                Text("⬡ STYLE LAB")
+                    .font(LCARSFont.label(10))
+                    .foregroundStyle(.black)
+                    .tracking(2)
+                    .padding(.horizontal, 12)
+                    .frame(height: 26)
+                    .background(Color.lcarsPeach)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.trailing, 12)
 
             VStack(alignment: .trailing, spacing: 1) {
                 Text("STARDATE")
