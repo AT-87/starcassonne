@@ -876,24 +876,49 @@ private enum TileStyleHolographic {
 struct RKTileView: View {
     let tile: Tile
     let size: CGFloat
+    @State private var failed = false
 
     var body: some View {
-        RealityView { content in
-            let scene = makeScene(for: tile)
-            content.add(scene)
+        if failed {
+            // Graceful fallback to 2D canvas if RealityKit scene construction fails
+            Canvas { ctx, sz in
+                TileStyleTactical.draw(tile: tile, ctx: ctx, s: sz.width)
+            }
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(alignment: .bottomTrailing) {
+                Text("3D N/A")
+                    .font(.system(size: 8))
+                    .foregroundStyle(.red.opacity(0.6))
+                    .padding(3)
+            }
+        } else {
+            RealityView { content in
+                do {
+                    let scene = try makeScene(for: tile)
+                    content.add(scene)
+                } catch {
+                    await MainActor.run { failed = true }
+                }
+            }
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: Scene dispatch
 
-    private func makeScene(for tile: Tile) -> Entity {
+    private func makeScene(for tile: Tile) throws -> Entity {
         let root = Entity()
 
-        // Tilt camera by rotating world root for isometric perspective feel
-        root.transform.rotation = simd_quatf(angle: -.pi / 5, axis: [1, 0, 0])
-        root.transform.rotation = simd_quatf(angle: .pi / 8, axis: [0, 1, 0]) * root.transform.rotation
+        // Place scene 0.5 m in front of the default iOS RealityView camera
+        // (camera sits at origin looking toward -Z, so scene must be at z < 0)
+        root.position = [0, 0, -0.5]
+
+        // Tilt for isometric perspective — rotate around X then Y
+        let tiltX = simd_quatf(angle: .pi / 6, axis: [1, 0, 0])
+        let tiltY = simd_quatf(angle: .pi / 6, axis: [0, 1, 0])
+        root.orientation = tiltY * tiltX
 
         let edges = tile.rotatedEdges
         let hasCorridor = Direction.allCases.contains { edges.edge(facing: $0) == .warpCorridor }
@@ -901,34 +926,19 @@ struct RKTileView: View {
         let hasColony   = tile.features.contains(.colony)
 
         if hasColony {
-            root.addChild(colonyScene())
+            root.addChild(try colonyScene())
         } else if hasSector && hasCorridor {
-            root.addChild(mixedScene(edges: edges))
+            root.addChild(try mixedScene(edges: edges))
         } else if hasSector {
-            root.addChild(sectorScene(edges: edges, hasStarbase: tile.features.contains(.starbase)))
+            root.addChild(try sectorScene(edges: edges, hasStarbase: tile.features.contains(.starbase)))
         } else if hasCorridor {
-            root.addChild(corridorScene(edges: edges))
+            root.addChild(try corridorScene(edges: edges))
         } else {
-            root.addChild(openSpaceScene())
+            root.addChild(try openSpaceScene())
         }
 
         root.addChild(makeLighting())
-        root.addChild(tileSurface())
         return root
-    }
-
-    // MARK: Tile Surface (ground plane)
-
-    private func tileSurface() -> Entity {
-        var mat = PhysicallyBasedMaterial()
-        mat.baseColor = .init(tint: UIColor(red: 0.03, green: 0.05, blue: 0.12, alpha: 1))
-        mat.roughness = .init(floatLiteral: 0.9)
-        mat.metallic  = .init(floatLiteral: 0.1)
-
-        let mesh = MeshResource.generatePlane(width: 1.0, depth: 1.0)
-        let e    = ModelEntity(mesh: mesh, materials: [mat])
-        e.position = [0, -0.22, 0]
-        return e
     }
 
     // MARK: Lighting
@@ -949,7 +959,7 @@ struct RKTileView: View {
 
     // MARK: Colony Scene — Blue Planet
 
-    private func colonyScene() -> Entity {
+    private func colonyScene() throws -> Entity {
         let root = Entity()
 
         // Main planet
@@ -957,22 +967,22 @@ struct RKTileView: View {
         planetMat.baseColor = .init(tint: UIColor(red: 0.15, green: 0.40, blue: 0.85, alpha: 1))
         planetMat.roughness = .init(floatLiteral: 0.6)
         planetMat.metallic  = .init(floatLiteral: 0.0)
-        let planet = ModelEntity(mesh: MeshResource.generateSphere(radius: 0.18), materials: [planetMat])
-        planet.position = [0, 0.03, 0]
+        let planet = ModelEntity(mesh: try MeshResource.generateSphere(radius: 0.18), materials: [planetMat])
+        planet.position = [0, 0, 0]
         root.addChild(planet)
 
         // Atmosphere glow (slightly larger sphere, unlit semi-transparent)
         var atmosMat = UnlitMaterial(); atmosMat.color = .init(tint: UIColor(red: 0.3, green: 0.55, blue: 1.0, alpha: 0.18), texture: nil)
-        let atmos = ModelEntity(mesh: MeshResource.generateSphere(radius: 0.21), materials: [atmosMat])
-        atmos.position = [0, 0.03, 0]
+        let atmos = ModelEntity(mesh: try MeshResource.generateSphere(radius: 0.22), materials: [atmosMat])
+        atmos.position = [0, 0, 0]
         root.addChild(atmos)
 
         // Moon
         var moonMat = PhysicallyBasedMaterial()
         moonMat.baseColor = .init(tint: UIColor(red: 0.55, green: 0.55, blue: 0.58, alpha: 1))
         moonMat.roughness = .init(floatLiteral: 0.9)
-        let moon = ModelEntity(mesh: MeshResource.generateSphere(radius: 0.055), materials: [moonMat])
-        moon.position = [0.30, 0.10, 0.0]
+        let moon = ModelEntity(mesh: try MeshResource.generateSphere(radius: 0.055), materials: [moonMat])
+        moon.position = [0.28, 0.10, 0]
         root.addChild(moon)
 
         // Point light — blue tint from above
@@ -986,14 +996,14 @@ struct RKTileView: View {
         root.addChild(lightE)
 
         // Star field (tiny spheres)
-        root.addChild(starField(count: 30, seed: 42, spread: 0.48, yRange: (-0.18, 0.18)))
+        root.addChild(try starField(count: 30, seed: 42, spread: 0.38))
 
         return root
     }
 
     // MARK: Sector Scene — Space Station
 
-    private func sectorScene(edges: TileEdges, hasStarbase: Bool) -> Entity {
+    private func sectorScene(edges: TileEdges, hasStarbase: Bool) throws -> Entity {
         let root = Entity()
 
         // Hub cylinder
@@ -1001,17 +1011,17 @@ struct RKTileView: View {
         hubMat.baseColor = .init(tint: UIColor(red: 0.55, green: 0.45, blue: 0.20, alpha: 1))
         hubMat.roughness = .init(floatLiteral: 0.3)
         hubMat.metallic  = .init(floatLiteral: 0.8)
-        let hub = ModelEntity(mesh: MeshResource.generateCylinder(height: 0.06, radius: 0.10), materials: [hubMat])
-        hub.position = [0, 0.03, 0]
+        let hub = ModelEntity(mesh: try MeshResource.generateCylinder(height: 0.06, radius: 0.10), materials: [hubMat])
+        hub.position = [0, 0, 0]
         root.addChild(hub)
 
-        // Docking ring (torus-like: slightly wider cylinder shell)
+        // Docking ring
         var ringMat = PhysicallyBasedMaterial()
         ringMat.baseColor = .init(tint: UIColor(red: 0.75, green: 0.62, blue: 0.30, alpha: 1))
         ringMat.roughness = .init(floatLiteral: 0.25)
         ringMat.metallic  = .init(floatLiteral: 0.9)
-        let ring = ModelEntity(mesh: MeshResource.generateCylinder(height: 0.02, radius: 0.165), materials: [ringMat])
-        ring.position = [0, 0.055, 0]
+        let ring = ModelEntity(mesh: try MeshResource.generateCylinder(height: 0.02, radius: 0.165), materials: [ringMat])
+        ring.position = [0, 0.04, 0]
         root.addChild(ring)
 
         // Solar panels — flat boxes at ±X and ±Z
@@ -1021,14 +1031,14 @@ struct RKTileView: View {
         panelMat.metallic  = .init(floatLiteral: 0.6)
 
         let panelOffsets: [SIMD3<Float>] = [
-            [ 0.28, 0.03, 0], [-0.28, 0.03, 0],
-            [0, 0.03,  0.28], [0, 0.03, -0.28]
+            [ 0.26, 0, 0], [-0.26, 0, 0],
+            [0, 0,  0.26], [0, 0, -0.26]
         ]
         for offset in panelOffsets {
             let isX = abs(offset.x) > 0.1
-            let pMesh = MeshResource.generateBox(width: isX ? 0.12 : 0.04,
-                                                 height: 0.015,
-                                                 depth:  isX ? 0.04 : 0.12)
+            let pMesh = try MeshResource.generateBox(width: isX ? 0.12 : 0.04,
+                                                     height: 0.015,
+                                                     depth:  isX ? 0.04 : 0.12)
             let panel = ModelEntity(mesh: pMesh, materials: [panelMat])
             panel.position = offset
             root.addChild(panel)
@@ -1044,51 +1054,52 @@ struct RKTileView: View {
         lightE.position = [0, 0.4, 0.3]
         root.addChild(lightE)
 
-        root.addChild(starField(count: 20, seed: 7, spread: 0.45, yRange: (-0.18, 0.18)))
+        root.addChild(try starField(count: 20, seed: 7, spread: 0.35))
         return root
     }
 
     // MARK: Corridor Scene — Warp Lane
 
-    private func corridorScene(edges: TileEdges) -> Entity {
+    private func corridorScene(edges: TileEdges) throws -> Entity {
         let root = Entity()
 
         let sides = Direction.allCases.filter { edges.edge(facing: $0) == .warpCorridor }
 
-        // Determine corridor orientation
         let isNS = sides.contains(.north) || sides.contains(.south)
         let isEW = sides.contains(.east)  || sides.contains(.west)
 
         var tubeMat = UnlitMaterial(); tubeMat.color = .init(tint: UIColor(red: 0.0, green: 0.75, blue: 1.0, alpha: 0.7), texture: nil)
         var coreMat = UnlitMaterial(); coreMat.color = .init(tint: UIColor(red: 0.7, green: 0.95, blue: 1.0, alpha: 0.9), texture: nil)
 
+        // Cylinders in RealityKit are Y-axis aligned by default.
+        // For N-S corridor we rotate around Z to align with X, and for E-W no rotation needed.
         if isNS {
-            let tube = ModelEntity(mesh: MeshResource.generateCylinder(height: 0.90, radius: 0.045), materials: [tubeMat])
-            tube.position = [0, 0.03, 0]
+            // N-S: runs along X axis — rotate 90° around Z
+            let tube = ModelEntity(mesh: try MeshResource.generateCylinder(height: 0.80, radius: 0.045), materials: [tubeMat])
+            tube.orientation = simd_quatf(angle: .pi/2, axis: [0, 0, 1])
             root.addChild(tube)
-            let core = ModelEntity(mesh: MeshResource.generateCylinder(height: 0.90, radius: 0.018), materials: [coreMat])
-            core.position = [0, 0.03, 0]
+            let core = ModelEntity(mesh: try MeshResource.generateCylinder(height: 0.80, radius: 0.018), materials: [coreMat])
+            core.orientation = simd_quatf(angle: .pi/2, axis: [0, 0, 1])
             root.addChild(core)
         }
         if isEW {
-            let tube = ModelEntity(mesh: MeshResource.generateCylinder(height: 0.90, radius: 0.045), materials: [tubeMat])
-            tube.orientation = simd_quatf(angle: .pi/2, axis: [0, 0, 1])
-            tube.position = [0, 0.03, 0]
+            // E-W: runs along Z axis — rotate 90° around X
+            let tube = ModelEntity(mesh: try MeshResource.generateCylinder(height: 0.80, radius: 0.045), materials: [tubeMat])
+            tube.orientation = simd_quatf(angle: .pi/2, axis: [1, 0, 0])
             root.addChild(tube)
-            let core = ModelEntity(mesh: MeshResource.generateCylinder(height: 0.90, radius: 0.018), materials: [coreMat])
-            core.orientation = simd_quatf(angle: .pi/2, axis: [0, 0, 1])
-            core.position = [0, 0.03, 0]
+            let core = ModelEntity(mesh: try MeshResource.generateCylinder(height: 0.80, radius: 0.018), materials: [coreMat])
+            core.orientation = simd_quatf(angle: .pi/2, axis: [1, 0, 0])
             root.addChild(core)
         }
 
-        // Beacon pillars at corridor end-points
+        // Beacon spheres at corridor ends
         var beaconMat = UnlitMaterial(); beaconMat.color = .init(tint: UIColor(red: 0.2, green: 0.9, blue: 1.0, alpha: 1.0), texture: nil)
         let beaconPositions: [SIMD3<Float>] = [
-            [0, 0.03, -0.44], [0, 0.03, 0.44],
-            [-0.44, 0.03, 0], [0.44, 0.03, 0]
+            [0, 0, -0.40], [0, 0, 0.40],
+            [-0.40, 0, 0], [0.40, 0, 0]
         ]
         for bp in beaconPositions {
-            let beacon = ModelEntity(mesh: MeshResource.generateSphere(radius: 0.032), materials: [beaconMat])
+            let beacon = ModelEntity(mesh: try MeshResource.generateSphere(radius: 0.032), materials: [beaconMat])
             beacon.position = bp
             root.addChild(beacon)
         }
@@ -1103,40 +1114,40 @@ struct RKTileView: View {
         lightE.position = [0, 0.45, 0.2]
         root.addChild(lightE)
 
-        root.addChild(starField(count: 18, seed: 13, spread: 0.45, yRange: (-0.18, 0.18)))
+        root.addChild(try starField(count: 18, seed: 13, spread: 0.35))
         return root
     }
 
     // MARK: Mixed Scene — Sector + Corridor
 
-    private func mixedScene(edges: TileEdges) -> Entity {
+    private func mixedScene(edges: TileEdges) throws -> Entity {
         let root = Entity()
-        root.addChild(sectorScene(edges: edges, hasStarbase: false))
-        root.addChild(corridorScene(edges: edges))
+        root.addChild(try sectorScene(edges: edges, hasStarbase: false))
+        root.addChild(try corridorScene(edges: edges))
         return root
     }
 
     // MARK: Open Space Scene
 
-    private func openSpaceScene() -> Entity {
+    private func openSpaceScene() throws -> Entity {
         let root = Entity()
-        root.addChild(starField(count: 40, seed: 99, spread: 0.48, yRange: (-0.10, 0.10)))
+        root.addChild(try starField(count: 40, seed: 99, spread: 0.38))
         return root
     }
 
     // MARK: Star Field
 
-    private func starField(count: Int, seed: Int, spread: Float, yRange: (Float, Float)) -> Entity {
+    private func starField(count: Int, seed: Int, spread: Float) throws -> Entity {
         let root = Entity()
         var rng = SeededRNG(seed: seed)
         var starMat = UnlitMaterial(); starMat.color = .init(tint: UIColor(white: 0.9, alpha: 0.85), texture: nil)
 
         for _ in 0..<count {
             let x = (Float(rng.next()) - 0.5) * spread * 2
-            let y = yRange.0 + Float(rng.next()) * (yRange.1 - yRange.0)
-            let z = (Float(rng.next()) - 0.5) * spread * 2
+            let y = (Float(rng.next()) - 0.5) * spread * 2
+            let z = (Float(rng.next()) - 0.5) * spread * 0.3   // shallow depth
             let r = Float(rng.next()) * 0.007 + 0.004
-            let star = ModelEntity(mesh: MeshResource.generateSphere(radius: r), materials: [starMat])
+            let star = ModelEntity(mesh: try MeshResource.generateSphere(radius: r), materials: [starMat])
             star.position = [x, y, z]
             root.addChild(star)
         }
