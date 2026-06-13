@@ -67,7 +67,8 @@ struct Player: Identifiable, Codable {
     var name: String
     var faction: Faction
     var score: Int = 0
-    var shipsRemaining: Int = 7  // Standard meeple count
+    var shipsRemaining: Int = 7        // Regular ships (meeples) — 7 per player
+    var miningShipsRemaining: Int = 1  // Mining Ship (Abbot) — 1 per player
 
     init(name: String, faction: Faction) {
         self.id      = UUID()

@@ -354,12 +354,16 @@ struct GameState {
         let idx = currentPlayerIndex
 
         if let feature {
-            // Only deploy if the player has ships left
-            if players[idx].shipsRemaining > 0 {
+            let isMining = (feature == .miningShip || feature == .dilithium)
+            let hasSupply = isMining
+                ? players[idx].miningShipsRemaining > 0
+                : players[idx].shipsRemaining > 0
+            if hasSupply {
                 if var tile = placedTiles[pos] {
                     tile.placedShip = (faction: currentPlayer.faction, feature: feature, edgeDir: edgeDir)
                     placedTiles[pos] = tile
-                    players[idx].shipsRemaining -= 1
+                    if isMining { players[idx].miningShipsRemaining -= 1 }
+                    else        { players[idx].shipsRemaining -= 1 }
                 }
             }
         }
@@ -392,7 +396,11 @@ struct GameState {
                    let ship = tile.placedShip,
                    ship.feature == event.feature {
                     if let i = players.firstIndex(where: { $0.faction == ship.faction }) {
-                        players[i].shipsRemaining += 1
+                        if ship.feature == .miningShip || ship.feature == .dilithium {
+                            players[i].miningShipsRemaining += 1
+                        } else {
+                            players[i].shipsRemaining += 1
+                        }
                     }
                     tile.placedShip = nil
                     placedTiles[tilePos] = tile
@@ -420,7 +428,11 @@ struct GameState {
                    let ship = tile.placedShip,
                    ship.feature == event.feature {
                     if let i = players.firstIndex(where: { $0.faction == ship.faction }) {
-                        players[i].shipsRemaining += 1
+                        if ship.feature == .miningShip || ship.feature == .dilithium {
+                            players[i].miningShipsRemaining += 1
+                        } else {
+                            players[i].shipsRemaining += 1
+                        }
                     }
                 }
             }
@@ -502,9 +514,10 @@ struct GameState {
             }
         }
 
-        // Return ship to supply
+        // Return ship to the correct supply pool
         if let i = players.firstIndex(where: { $0.faction == ship.faction }) {
-            players[i].shipsRemaining += 1
+            // recallShip is only reachable for .miningShip / .dilithium (checked above)
+            players[i].miningShipsRemaining += 1
         }
         tile.placedShip = nil
         placedTiles[pos] = tile

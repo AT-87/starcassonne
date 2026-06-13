@@ -29,6 +29,9 @@ struct GameView: View {
                         Button("Cancel", role: .cancel) {}
                     }
 
+                // ── Tile countdown progress bar ───────────────────────────────
+                TileProgressBar(vm: vm)
+
                 // ── Legend ────────────────────────────────────────────────────
                 LCARSLegendBar()
 
@@ -116,6 +119,48 @@ struct GameView: View {
                 if !vm.pendingToasts.isEmpty { showNextToast() }
             }
         }
+    }
+}
+
+// MARK: - Tile Countdown Progress Bar
+
+private struct TileProgressBar: View {
+    var vm: GameViewModel
+
+    var body: some View {
+        let gs        = vm.gameState
+        let isNebula  = gs.phase == .nebula
+        let total     = isNebula ? (gs.nebulaCount - 1) : TileDeck.totalCount   // -1: source pre-placed
+        let remaining = gs.tilesRemaining
+        let fraction  = total > 0 ? Double(remaining) / Double(total) : 0.0
+        let barColor  = isNebula ? Color.purple : Color.lcarsOrange
+
+        VStack(spacing: 0) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Color(white: 0.12)
+                    barColor
+                        .opacity(0.85)
+                        .frame(width: geo.size.width * fraction)
+                        .animation(.linear(duration: 0.3), value: fraction)
+                }
+            }
+            .frame(height: 4)
+
+            HStack {
+                Text(isNebula ? "NEBULA" : "TILES REMAINING")
+                    .font(LCARSFont.caption(8))
+                    .foregroundStyle(barColor.opacity(0.7))
+                    .tracking(2)
+                Spacer()
+                Text("\(remaining) / \(total)")
+                    .font(LCARSFont.data(9))
+                    .foregroundStyle(barColor.opacity(0.7))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 2)
+        }
+        .background(Color(white: 0.07))
     }
 }
 
@@ -413,6 +458,33 @@ private struct LCARSShipBar: View {
     }
 }
 
+// MARK: - Ship icon strip
+
+/// Renders `total` ship icons in a wrapping row, filling `remaining` in `activeColor`
+/// and the deployed ones in `deployedColor`.
+private struct FlowingShipIcons: View {
+    let total: Int
+    let remaining: Int
+    let symbol: String
+    let activeColor: Color
+    let deployedColor: Color
+
+    var body: some View {
+        let cols = min(total, 7)
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.fixed(9), spacing: 1), count: cols),
+            spacing: 1
+        ) {
+            ForEach(0..<total, id: \.self) { i in
+                Text(symbol)
+                    .font(.system(size: 8))
+                    .foregroundStyle(i < remaining ? activeColor : deployedColor)
+            }
+        }
+        .frame(width: CGFloat(cols) * 10)
+    }
+}
+
 // MARK: - Bottom Bar
 
 private struct LCARSBottomBar: View {
@@ -456,33 +528,35 @@ private struct LCARSBottomBar: View {
                             ))
 
                             // Score + ships remaining
-                            VStack(spacing: 1) {
+                            VStack(spacing: 3) {
                                 Text("\(player.score)")
                                     .font(LCARSFont.data(16))
                                     .foregroundStyle(
                                         isCurrent ? player.faction.color : Color(white: 0.5)
                                     )
-                                    .frame(height: 22)
+                                    .frame(height: 20)
 
-                                HStack(spacing: 2) {
-                                    Text(player.faction.shipSymbol)
-                                        .font(.system(size: 8))
-                                        .foregroundStyle(
-                                            isCurrent
-                                                ? player.faction.color.opacity(0.9)
-                                                : Color(white: 0.4)
-                                        )
-                                    Text("×\(player.shipsRemaining)")
-                                        .font(LCARSFont.data(10))
-                                        .foregroundStyle(
-                                            isCurrent
-                                                ? player.faction.color.opacity(0.85)
-                                                : Color(white: 0.4)
-                                        )
-                                }
-                                .frame(height: 14)
+                                // Regular ships — one icon per ship, dimmed when deployed
+                                let activeColor   = isCurrent ? player.faction.color : Color(white: 0.45)
+                                let deployedColor = isCurrent ? player.faction.color.opacity(0.18) : Color(white: 0.18)
+                                FlowingShipIcons(
+                                    total: 7,
+                                    remaining: player.shipsRemaining,
+                                    symbol: player.faction.shipSymbol,
+                                    activeColor: activeColor,
+                                    deployedColor: deployedColor
+                                )
+
+                                // Mining Ship — single icon
+                                Text("⛏")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(
+                                        player.miningShipsRemaining > 0
+                                            ? (isCurrent ? Color(red: 0.1, green: 0.55, blue: 0.25) : Color(white: 0.4))
+                                            : Color(white: 0.18)
+                                    )
                             }
-                            .frame(minWidth: 52)
+                            .frame(minWidth: 64)
                             .padding(.bottom, 4)
                             .background(
                                 isCurrent ? Color(white: 0.13) : Color(white: 0.09)

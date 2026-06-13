@@ -101,7 +101,9 @@ class GameViewModel {
         guard let pos  = lastPlacedPos,
               let tile = gameState.placedTiles[pos] else { return [] }
 
-        guard gameState.currentPlayer.shipsRemaining > 0 else { return [] }
+        let player = gameState.currentPlayer
+        // If neither pool has ships, nothing to offer (besides PASS which is always shown)
+        guard player.shipsRemaining > 0 || player.miningShipsRemaining > 0 else { return [] }
 
         var options: [ShipOption] = []
         let edges       = tile.rotatedEdges
@@ -123,49 +125,53 @@ class GameViewModel {
 
         let multiSector = sectorEntries.count > 1
 
-        for entry in sectorEntries {
-            guard !ScoringEngine.isOccupied(at: pos, edgeDir: entry.dir,
-                                             feature: .sector, in: gameState) else { continue }
-            let label = multiSector
-                ? "SECTOR (\(entry.dir.rawValue.prefix(1).uppercased()))"
-                : "SECTOR"
-            options.append(ShipOption(feature: .sector, edgeDir: entry.dir, label: label))
+        if player.shipsRemaining > 0 {
+            for entry in sectorEntries {
+                guard !ScoringEngine.isOccupied(at: pos, edgeDir: entry.dir,
+                                                 feature: .sector, in: gameState) else { continue }
+                let label = multiSector
+                    ? "SECTOR (\(entry.dir.rawValue.prefix(1).uppercased()))"
+                    : "SECTOR"
+                options.append(ShipOption(feature: .sector, edgeDir: entry.dir, label: label))
+            }
+
+            // ── Warp Corridor ─────────────────────────────────────────────────
+            for dir in Direction.allCases where edges.edge(facing: dir) == .warpCorridor
+                                             && !streamEdges.contains(dir) {
+                if !ScoringEngine.isOccupied(at: pos, edgeDir: dir,
+                                              feature: .warpCorridor, in: gameState) {
+                    options.append(ShipOption(feature: .warpCorridor, edgeDir: dir,
+                                              label: "WARP CORRIDOR"))
+                    break
+                }
+            }
+
+            // ── Colony (regular Ship) ─────────────────────────────────────────
+            if tile.features.contains(.colony),
+               !ScoringEngine.isOccupied(at: pos, edgeDir: .north,
+                                          feature: .colony, in: gameState) {
+                options.append(ShipOption(feature: .colony, edgeDir: nil, label: "COLONY\n(SHIP)"))
+            }
+
+            // ── Open Space / Trader ───────────────────────────────────────────
+            options.append(ShipOption(feature: .openSpace, edgeDir: nil, label: "TRADER"))
         }
 
-        // ── Warp Corridor ─────────────────────────────────────────────────────
-        // Corridors always form a single connected road through a tile (or terminate at
-        // a crossroads), so one representative direction is sufficient.
-        for dir in Direction.allCases where edges.edge(facing: dir) == .warpCorridor
-                                         && !streamEdges.contains(dir) {
-            if !ScoringEngine.isOccupied(at: pos, edgeDir: dir,
-                                          feature: .warpCorridor, in: gameState) {
-                options.append(ShipOption(feature: .warpCorridor, edgeDir: dir,
-                                          label: "WARP CORRIDOR"))
-                break   // all corridor edges on this tile connect — one option is enough
+        if player.miningShipsRemaining > 0 {
+            // ── Colony (Mining Ship / Abbot) ──────────────────────────────────
+            if tile.features.contains(.colony),
+               !ScoringEngine.isOccupied(at: pos, edgeDir: .north,
+                                          feature: .colony, in: gameState) {
+                options.append(ShipOption(feature: .miningShip, edgeDir: nil, label: "COLONY\n(MINING)"))
+            }
+
+            // ── Dilithium Asteroid — Mining Ship only ─────────────────────────
+            if tile.features.contains(.dilithiumAsteroid),
+               !ScoringEngine.isOccupied(at: pos, edgeDir: .north,
+                                          feature: .dilithium, in: gameState) {
+                options.append(ShipOption(feature: .dilithium, edgeDir: nil, label: "DILITHIUM\n(MINING)"))
             }
         }
-
-        // ── Colony ───────────────────────────────────────────────────────────
-        // Two ship types can occupy a colony:
-        //   • Regular Ship  — scores at game end / when completed; not recallable
-        //   • Mining Ship   — Abbot equivalent; can be recalled early to score immediately
-        if tile.features.contains(.colony),
-           !ScoringEngine.isOccupied(at: pos, edgeDir: .north,
-                                      feature: .colony, in: gameState) {
-            options.append(ShipOption(feature: .colony,     edgeDir: nil, label: "COLONY\n(SHIP)"))
-            options.append(ShipOption(feature: .miningShip, edgeDir: nil, label: "COLONY\n(MINING)"))
-        }
-
-        // ── Dilithium Asteroid ────────────────────────────────────────────────
-        // Only the Mining Ship may claim a Dilithium Asteroid (per STARCASSONNE.md).
-        if tile.features.contains(.dilithiumAsteroid),
-           !ScoringEngine.isOccupied(at: pos, edgeDir: .north,
-                                      feature: .dilithium, in: gameState) {
-            options.append(ShipOption(feature: .dilithium, edgeDir: nil, label: "DILITHIUM\n(MINING)"))
-        }
-
-        // ── Open Space / Trader ───────────────────────────────────────────────
-        options.append(ShipOption(feature: .openSpace, edgeDir: nil, label: "TRADER"))
 
         return options
     }
